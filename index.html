@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Car Movement Tracker</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <style>
+        #map {
+            height: 500px;
+            width: 100%;
+        }
+        .info {
+            margin-top: 10px;
+            font-size: 18px;
+            font-family: Arial, sans-serif;
+        }
+    </style>
+</head>
+<body>
+    <h1>User Movement Tracker</h1>
+    <div id="map"></div>
+    <div class="info">
+        <p>Latitude: <span id="latitude">-</span></p>
+        <p>Longitude: <span id="longitude">-</span></p>
+        <p>Speed: <span id="speed">-</span> km/h</p>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        // Initialize the map
+        const map = L.map('map').setView([0, 0], 13);
+
+        // Add OpenStreetMap tiles
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+        }).addTo(map);
+
+        // Add a marker to the map
+        const marker = L.marker([0, 0]).addTo(map);
+
+        // HTML elements for displaying info
+        const latitudeElement = document.getElementById('latitude');
+        const longitudeElement = document.getElementById('longitude');
+        const speedElement = document.getElementById('speed');
+
+        // Function to convert m/s to km/h
+        function convertSpeedToKmh(speed) {
+            return (speed * 3.6).toFixed(2);
+        }
+
+        // Function to send data to the server
+        async function sendDataToServer(latitude, longitude, speed) {
+            const data = {
+                latitude: latitude,
+                longitude: longitude,
+                speed: speed,
+            };
+
+            try {
+                const response = await fetch('http://127.0.0.1:5000/location', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data),
+                });
+
+                if (!response.ok) {
+                    console.error('Failed to send data to server:', response.statusText);
+                }
+            } catch (error) {
+                console.error('Error sending data to server:', error);
+            }
+        }
+
+        // Watch user's position
+        if (navigator.geolocation) {
+            navigator.geolocation.watchPosition(
+                (position) => {
+                    const { latitude, longitude, speed } = position.coords;
+
+                    // Update map and marker
+                    const latLng = [latitude, longitude];
+                    map.setView(latLng, 13);
+                    marker.setLatLng(latLng);
+
+                    // Update info display
+                    latitudeElement.textContent = latitude.toFixed(6);
+                    longitudeElement.textContent = longitude.toFixed(6);
+                    const speedKmh = speed ? convertSpeedToKmh(speed) : '0.00';
+                    speedElement.textContent = speedKmh;
+
+                    // Send data to server
+                    sendDataToServer(latitude, longitude, speedKmh);
+                },
+                (error) => {
+                    alert('Error getting location: ' + error.message);
+                },
+                {
+                    enableHighAccuracy: true,
+                }
+            );
+        } else {
+            alert('Geolocation is not supported by your browser.');
+        }
+    </script>
+</body>
+</html>
